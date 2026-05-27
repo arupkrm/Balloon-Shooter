@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>Neon Sci-Fi Shooter</title>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            overflow: hidden;
+            min-height: 100vh;
+            background: radial-gradient(circle at center, #1a1025 0%, #0a0510 100%);
+            font-family: 'Orbitron', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hidden { display: none !important; }
+        
+        /* Neon Colors */
+        .neon-yellow { color: #facc15; text-shadow: 0 0 8px rgba(250, 204, 21, 0.6); }
+        .neon-green { color: #4ade80; text-shadow: 0 0 8px rgba(74, 222, 128, 0.6); }
+        .neon-blue { color: #38bdf8; text-shadow: 0 0 8px rgba(56, 189, 248, 0.6); }
+        .neon-red { color: #f87171; text-shadow: 0 0 8px rgba(248, 113, 113, 0.6); }
+        .neon-magenta { color: #d946ef; text-shadow: 0 0 8px rgba(217, 70, 239, 0.6); }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Screen Shake Animation */
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-3px, 2px) rotate(-1deg); }
+            40% { transform: translate(3px, -2px) rotate(1deg); }
+            60% { transform: translate(-3px, -2px) rotate(0deg); }
+            80% { transform: translate(3px, 2px) rotate(1deg); }
+        }
+        .shake-active {
+            animation: shake 0.2s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        #top-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: rgba(10, 5, 20, 0.8);
+            border-bottom: 2px solid #d946ef;
+            box-shadow: 0 0 15px rgba(217, 70, 239, 0.3);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+        }
+        @media (min-width: 768px) {
+            #top-header { font-size: 18px; height: 70px; }
+        }
+
+        /* Combo UI */
+        .combo-container {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .combo-text {
+            font-size: 24px;
+            font-weight: 900;
+            color: #facc15;
+            text-shadow: 0 0 10px rgba(250, 204, 21, 0.8);
+            font-style: italic;
+            transition: transform 0.1s;
+        }
+        .combo-bar-bg {
+            width: 100px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+            border: 1px solid rgba(250, 204, 21, 0.3);
+        }
+        .combo-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #facc15, #f87171);
+            box-shadow: 0 0 5px #facc15;
+            transform-origin: left;
+        }
+
+        /* Play Area */
+        #game-border {
+            position: absolute;
+            top: 75px;
+            left: 10px;
+            right: 10px;
+            bottom: 50px;
+            pointer-events: none;
+            z-index: 5;
+            border: 2px solid rgba(56, 189, 248, 0.3);
+            border-radius: 12px;
+            box-shadow: inset 0 0 30px rgba(56, 189, 248, 0.1);
+            overflow: hidden;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 40px,
+                rgba(56, 189, 248, 0.03) 40px,
+                rgba(56, 189, 248, 0.03) 80px
+            );
+        }
+        @media (min-width: 768px) {
+            #game-border { top: 90px; left: 20px; right: 20px; bottom: 60px; }
+        }
+
+        #crosshair {
+            position: fixed;
+            width: 32px;
+            height: 32px;
+            border: 2px solid #0ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+            display: none;
+            box-shadow: 0 0 10px #0ff, inset 0 0 10px #0ff;
+        }
+        #crosshair::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 4px; height: 4px;
+            background-color: #0ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 5px #0ff;
+        }
+
+        #gun-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            width: 60px;
+            height: 120px;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(0deg);
+            z-index: 15;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        @media (min-width: 768px) {
+            #gun-container { bottom: 30px; width: 80px; height: 160px; }
+        }
+
+        .balloon {
+            position: absolute;
+            width: 45px;
+            height: 78px;
+            cursor: crosshair;
+            z-index: 8;
+            transform-origin: center center;
+        }
+        @media (min-width: 768px) {
+            .balloon { width: 60px; height: 105px; }
+        }
+
+        .laser-trail {
+            position: absolute;
+            height: 4px;
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.9) 0%, rgba(217, 70, 239, 0.5) 80%, transparent 100%);
+            transform-origin: left center;
+            pointer-events: none;
+            z-index: 12;
+            border-radius: 2px;
+            box-shadow: 0 0 10px #0ff, 0 0 20px #d946ef;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 12px;
+            border-radius: 2px;
+            pointer-events: none;
+            z-index: 14;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .floating-text {
+            position: absolute;
+            font-size: 20px;
+            font-weight: 900;
+            pointer-events: none;
+            z-index: 25;
+            text-shadow: 0 0 8px currentColor;
+            animation: floatUp 0.8s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            50% { transform: translate(-50%, -100%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -150%) scale(1); opacity: 0; }
+        }
+
+        .flash {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            width: 45px;
+            height: 45px;
+            background: radial-gradient(circle, #fff 0%, #0ff 40%, transparent 80%);
+            transform: translateX(-50%);
+            border-radius: 50%;
+            z-index: 16;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 0 20px #0ff;
+        }
+
+        #screen-flash {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 0, 0, 0.2);
+            pointer-events: none;
+            z-index: 19;
+            opacity: 0;
+            transition: opacity 0.1s ease-out;
+            mix-blend-mode: overlay;
+        }
+
+        /* Glassmorphism Menus */
+        .screen-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            background: rgba(5, 2, 10, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .game-screen {
+            background: rgba(20, 10, 40, 0.6);
+            border: 1px solid rgba(217, 70, 239, 0.3);
+            box-shadow: 0 0 30px rgba(217, 70, 239, 0.2), inset 0 0 20px rgba(56, 189, 248, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            max-width: 400px;
+            width: calc(100% - 32px);
+        }
+
+        .title-main { font-size: 28px; font-weight: 900; margin-bottom: 16px; letter-spacing: 2px; }
+        .desc-text, .desc-center { color: #cbd5e1; font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
+        .desc-text { text-align: left; }
+
+        .stats-container {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .stats-label { color: #9ca3af; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        .stats-row { display: flex; justify-content: space-around; margin-top: 10px; font-weight: 700; font-size: 16px; }
+
+        .btn-start-custom {
+            background: linear-gradient(45deg, #9333ea, #db2777);
+            border: none;
+            color: #ffffff;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 18px;
+            letter-spacing: 2px;
+            padding: 15px 30px;
+            border-radius: 9999px;
+            box-shadow: 0 0 15px rgba(219, 39, 119, 0.5);
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+        .btn-start-custom:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(219, 39, 119, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <div id="screen-flash"></div>
+
+        <div id="top-header">
+            <div>LEVEL <span id="txt-level" class="neon-yellow">1</span></div>
+            <div>HITS <span id="txt-hits" class="neon-green">0</span>/<span id="txt-target" class="neon-yellow">7</span></div>
+            <div>SCORE <span id="txt-score" class="neon-blue">0</span></div>
+            <div>BEST <span id="txt-highscore" class="neon-magenta">0</span></div>
+            <div><span id="txt-timer" class="neon-red">05:00</span></div>
+        </div>
+
+        <div class="combo-container" id="combo-container">
+            <div class="combo-text" id="combo-text">COMBO x0</div>
+            <div class="combo-bar-bg">
+                <div class="combo-bar-fill" id="combo-fill"></div>
+            </div>
+        </div>
+
+        <div id="game-border"></div>
+
+        <div id="gun-container" data-rotation="0">
+            <div class="flash" id="muzzle-flash"></div>
+            <!-- High-Tech SVG Gun -->
+            <svg viewBox="0 0 100 250" style="width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(0,255,255,0.3));">
+                <defs>
+                    <linearGradient id="metal" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#1e293b"/>
+                        <stop offset="50%" stop-color="#475569"/>
+                        <stop offset="100%" stop-color="#0f172a"/>
+                    </linearGradient>
+                    <linearGradient id="neonGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#0ff"/>
+                        <stop offset="100%" stop-color="#3b82f6"/>
+                    </linearGradient>
+                </defs>
+                <rect x="46" y="10" width="8" height="120" fill="url(#metal)" />
+                <rect x="42" y="5" width="16" height="25" rx="3" fill="#020617" stroke="#0ff" stroke-width="1"/>
+                <rect x="48" y="30" width="4" height="90" fill="url(#neonGlow)" />
+                <rect x="36" y="105" width="28" height="16" rx="4" fill="#0f172a" stroke="#d946ef" stroke-width="1"/>
+                <rect x="40" y="130" width="20" height="70" rx="4" fill="#1e293b" />
+                <polygon points="40,160 60,160 65,180 35,180" fill="#0f172a"/>
+                <circle cx="50" cy="150" r="6" fill="#0ff" opacity="0.8"/>
+                <path d="M 45,200 C 45,210 55,210 55,200" fill="none" stroke="#0ff" stroke-width="2" />
+                <path d="M 40,195 L 60,195 L 55,245 L 45,245 Z" fill="#020617" stroke="#334155" stroke-width="2"/>
+            </svg>
+        </div>
+
+        <div id="crosshair"></div>
+
+        <div id="screen-start" class="screen-overlay">
+            <div class="game-screen">
+                <h1 class="title-main neon-blue">NEON SHOOTER</h1>
+                <p class="desc-text">
+                    Destroy targets before they escape!<br><br>
+                    <span class="neon-yellow">★ GOLD BALLOONS:</span> +5x Points & Instant Combo<br>
+                    <span class="neon-red">⚠ BOMB BALLOONS:</span> DO NOT SHOOT! (-3 Sec & Lose Combo)<br><br>
+                    Build your combo by shooting consecutively without missing.
+                </p>
+                <button id="btn-start" class="btn-start-custom">INITIALIZE</button>
+            </div>
+        </div>
+
+        <div id="screen-modal" class="screen-overlay hidden">
+            <div class="game-screen">
+                <h2 id="modal-title" class="title-main neon-red">SYSTEM FAILURE</h2>
+                <p id="modal-desc" class="desc-center">Time limit exceeded.</p>
+                <div class="stats-container">
+                    <p class="stats-label">Performance Log</p>
+                    <div class="stats-row">
+                        <div>LEVEL: <span id="modal-stat-level" class="neon-yellow">1</span></div>
+                        <div>SCORE: <span id="modal-stat-score" class="neon-green">0</span></div>
+                    </div>
+                </div>
+                <button id="btn-modal-action" class="btn-start-custom">REBOOT</button>
+            </div>
+        </div>
+
+        <div id="screen-next" class="screen-overlay hidden">
+            <div class="game-screen">
+                <h2 id="txt-next-level-title" class="title-main neon-green">SECTOR CLEARED</h2>
+                <p id="txt-next-level-desc" class="desc-center">Target requirements met. Proceeding to next sector.</p>
+                <button id="btn-next" class="btn-start-custom">ENGAGE</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const container = document.getElementById("game-container");
+        const gameBorder = document.getElementById("game-border");
+        const crosshair = document.getElementById("crosshair");
+        const gun = document.getElementById("gun-container");
+        const muzzleFlash = document.getElementById("muzzle-flash");
+        const screenFlash = document.getElementById("screen-flash");
+
+        const txtLevel = document.getElementById("txt-level");
+        const txtScore = document.getElementById("txt-score");
+        const txtHighScore = document.getElementById("txt-highscore");
+        const txtTimer = document.getElementById("txt-timer");
+        const txtHits = document.getElementById("txt-hits");
+        const txtTarget = document.getElementById("txt-target");
+
+        const comboContainer = document.getElementById("combo-container");
+        const comboText = document.getElementById("combo-text");
+        const comboFill = document.getElementById("combo-fill");
+
+        const screenStart = document.getElementById("screen-start");
+        const screenModal = document.getElementById("screen-modal");
+        const screenNext = document.getElementById("screen-next");
+
+        const btnStart = document.getElementById("btn-start");
+        const btnNext = document.getElementById("btn-next");
+        const btnModalAction = document.getElementById("btn-modal-action");
+
+        const modalTitle = document.getElementById("modal-title");
+        const modalDesc = document.getElementById("modal-desc");
+        const modalStatLevel = document.getElementById("modal-stat-level");
+        const modalStatScore = document.getElementById("modal-stat-score");
+        
+        const txtNextLevelTitle = document.getElementById("txt-next-level-title");
+        const txtNextLevelDesc = document.getElementById("txt-next-level-desc");
+
+        // Game State
+        let score = 0;                  
+        let scoreAtLevelStart = 0;      
+        let level = 1;                  
+        let levelHits = 0;              
+        let levelTarget = 7;            
+        let activeBalloons = [];
+        let gameActive = false;
+        let gameLoopTimer = null;
+        let timeLeft = 300;             
+        let countdownTimer = null;
+        let levelTransitioning = false; 
+        let lastGameWasWon = false;     
+
+        let highScore = localStorage.getItem('neonShooterHighScore') || 0;
+        txtHighScore.innerText = highScore;
+
+        // Combo State
+        let currentCombo = 0;
+        let comboTimeLeft = 0;
+        const COMBO_MAX_TIME = 2000; 
+        let lastComboTime = 0;
+        let comboTickTimer = null;
+
+        // Gun Animation State
+        let targetGunRotation = 0;
+        let currentGunRotation = 0;
+        let targetGunRecoilY = 0;
+        let currentGunRecoilY = 0;
+        let targetGunScaleY = 1;
+        let currentGunScaleY = 1;
+
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+
+        // Native Web Audio Engine (No external dependencies)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'shoot') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'pop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        function getLevelTarget(currentLvl) {
+            if (currentLvl === 1) return 20;
+            if (currentLvl === 2) return 30;
+            return 40;
+        }
+
+        function smoothGunAnimationLoop() {
+            currentGunRotation += (targetGunRotation - currentGunRotation) * 0.3;
+            currentGunRecoilY += (targetGunRecoilY - currentGunRecoilY) * 0.15;
+            currentGunScaleY += (targetGunScaleY - currentGunScaleY) * 0.15;
+            gun.style.transform = `translateX(-50%) rotate(${currentGunRotation}deg) translateY(${currentGunRecoilY}px) scaleY(${currentGunScaleY})`;
+            requestAnimationFrame(smoothGunAnimationLoop);
+        }
+        smoothGunAnimationLoop();
+
+        function updateAim() {
+            const isDesktop = window.innerWidth >= 768;
+            const gunBottomOffset = isDesktop ? 30 : 20; 
+            const gunPivotX = window.innerWidth / 2;
+            const gunPivotY = window.innerHeight - gunBottomOffset;
+            let angleRadians = Math.atan2(mouseY - gunPivotY, mouseX - gunPivotX);
+            let angleDegrees = angleRadians * (180 / Math.PI);
+            let rotationAngle = angleDegrees + 90;
+            if (rotationAngle < -80) rotationAngle = -80;
+            if (rotationAngle > 80) rotationAngle = 80;
+            gun.dataset.rotation = rotationAngle; 
+            targetGunRotation = rotationAngle;    
+        }
+
+        // Event Listeners
+        document.addEventListener("mousemove", (e) => {
+            mouseX = e.clientX; mouseY = e.clientY;
+            crosshair.style.left = `${mouseX}px`; crosshair.style.top = `${mouseY}px`;
+            if (gameActive) updateAim();
+        });
+
+        document.addEventListener("touchmove", (e) => {
+            if (e.touches.length > 0) {
+                mouseX = e.touches[0].clientX; mouseY = e.touches[0].clientY;
+                crosshair.style.left = `${mouseX}px`; crosshair.style.top = `${mouseY}px`;
+                if (gameActive) updateAim();
+            }
+        }, { passive: true });
+
+        // Combo Mechanics
+        function resetCombo() {
+            currentCombo = 0;
+            comboContainer.style.opacity = "0";
+            cancelAnimationFrame(comboTickTimer);
+        }
+
+        function updateComboLogic() {
+            if(!gameActive || currentCombo === 0) return;
+            const now = performance.now();
+            const elapsed = now - lastComboTime;
+            
+            if(elapsed > COMBO_MAX_TIME) {
+                resetCombo();
+            } else {
+                const perc = 1 - (elapsed / COMBO_MAX_TIME);
+                comboFill.style.transform = `scaleX(${perc})`;
+            }
+            if(gameActive) comboTickTimer = requestAnimationFrame(updateComboLogic);
+        }
+
+        function registerHitCombo(x, y, basePoints = 1) {
+            currentCombo++;
+            lastComboTime = performance.now();
+            
+            if(currentCombo > 1) {
+                comboContainer.style.opacity = "1";
+                comboText.innerText = `COMBO x${currentCombo}`;
+                comboText.style.transform = "scale(1.3)";
+                setTimeout(()=> comboText.style.transform = "scale(1)", 100);
+            }
+
+            const pointsEarned = basePoints * currentCombo;
+            score += pointsEarned;
+            
+            spawnFloatingText(x, y, `+${pointsEarned}`, currentCombo > 2);
+            if(currentCombo === 1) updateComboLogic();
+        }
+
+        // Button Clicks
+        btnStart.onclick = () => {
+            initAudio();
+            screenStart.classList.add("hidden");
+            crosshair.style.display = "block";
+            level = 1; score = 0; scoreAtLevelStart = 0;
+            initGameStage();
+        };
+
+        btnNext.onclick = () => {
+            screenNext.classList.add("hidden");
+            level++;
+            initGameStage();
+        };
+
+        btnModalAction.onclick = () => {
+            screenModal.classList.add("hidden");
+            crosshair.style.display = "block"; // Fix for crosshair not showing
+            if (lastGameWasWon) {
+                level = 1; score = 0; scoreAtLevelStart = 0;
+            } else {
+                score = scoreAtLevelStart;
+            }
+            txtScore.innerText = score;
+            initGameStage();
+        };
+
+        function initGameStage() {
+            resetCurrentLevelState();
+            levelHits = 0;
+            levelTarget = getLevelTarget(level);
+            levelTransitioning = false;
+            scoreAtLevelStart = score;
+            resetCombo();
+
+            txtLevel.innerText = level;
+            txtScore.innerText = score;
+            txtHits.innerText = levelHits;
+            txtTarget.innerText = levelTarget;
+
+            gameActive = true;
+            spawnBalloons(6);
+            startLevelTimer();
+            startGameLoop();
+        }
+
+        function startLevelTimer() {
+            clearInterval(countdownTimer);
+            timeLeft = 30; 
+            updateTimerUI();
+
+            countdownTimer = setInterval(() => {
+                if (!gameActive) return;
+                timeLeft--;
+                updateTimerUI();
+                if (timeLeft <= 0) {
+                    clearInterval(countdownTimer);
+                    endGame(false, `Time Limit Exceeded. Sector ${level} failed.`);
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const minutes = Math.floor(Math.max(0, timeLeft) / 60);
+            const seconds = Math.max(0, timeLeft) % 60;
+            txtTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function resetCurrentLevelState() {
+            activeBalloons.forEach(b => b.element.remove());
+            activeBalloons = [];
+            cancelAnimationFrame(gameLoopTimer);
+            clearInterval(countdownTimer);
+        }
+
+        // Spawning and Effects
+        function triggerScreenShake() {
+            container.classList.remove("shake-active");
+            void container.offsetWidth; 
+            container.classList.add("shake-active");
+        }
+
+        function triggerHeavyScreenShake() {
+            container.style.animation = "none";
+            void container.offsetWidth;
+            container.style.animation = "shake 0.3s cubic-bezier(.36,.07,.19,.97) both";
+            setTimeout(() => container.style.animation = "", 300);
+            triggerScreenFlash();
+        }
+
+        function triggerScreenFlash() {
+            screenFlash.style.opacity = "1";
+            setTimeout(() => { screenFlash.style.opacity = "0"; }, 150);
+        }
+
+        function spawnSingleBalloon(minX, maxX, startY) {
+            if (levelHits >= levelTarget) return;
+
+            const balloonEl = document.createElement("div");
+            balloonEl.className = "balloon";
+            
+            const rand = Math.random();
+            let type = 'normal';
+            if (level > 1 && rand > 0.85) type = 'bomb';
+            else if (rand > 0.90) type = 'gold';
+
+            let svgContent = '';
+            let speedMult = 1;
+
+            if (type === 'gold') {
+                svgContent = `
+                    <svg viewBox="0 0 60 105" style="width:100%; height:100%; filter: drop-shadow(0 0 15px #facc15);">
+                        <ellipse cx="30" cy="55" rx="24" ry="35" fill="#ca8a04" opacity="0.9"/>
+                        <circle cx="30" cy="55" r="15" fill="#fef08a" opacity="0.9"/>
+                        <polygon points="30,35 40,55 30,75 20,55" fill="#facc15" />
+                        <path d="M 44,45 A 18,25 0 0,1 42,70" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.8" />
+                    </svg>
+                `;
+                speedMult = 1.8;
+                balloonEl.style.zIndex = "9";
+            } else if (type === 'bomb') {
+                svgContent = `
+                    <svg viewBox="0 0 60 105" style="width:100%; height:100%; filter: drop-shadow(0 0 15px #ef4444);">
+                        <ellipse cx="30" cy="55" rx="24" ry="35" fill="#111827" stroke="#ef4444" stroke-width="3"/>
+                        <polygon points="30,35 45,65 15,65" fill="#ef4444" />
+                        <text x="30" y="58" fill="#fff" font-size="16" font-family="sans-serif" font-weight="bold" text-anchor="middle">!</text>
+                        <circle cx="30" cy="55" r="24" fill="none" stroke="#ef4444" stroke-width="1" stroke-dasharray="4 4">
+                            <animateTransform attributeName="transform" type="rotate" from="0 30 55" to="360 30 55" dur="3s" repeatCount="indefinite"/>
+                        </circle>
+                    </svg>
+                `;
+                speedMult = 1.1;
+            } else {
+                const hue = (level * 60 + Math.random() * 40) % 360;
+                svgContent = `
+                    <svg viewBox="0 0 60 105" style="width:100%; height:100%;">
+                        <defs>
+                            <radialGradient id="grad${activeBalloons.length}" cx="35%" cy="30%" r="70%">
+                                <stop offset="0%" stop-color="hsl(${hue}, 100%, 75%)" />
+                                <stop offset="70%" stop-color="hsl(${hue}, 100%, 50%)" />
+                                <stop offset="100%" stop-color="hsl(${hue}, 100%, 25%)" />
+                            </radialGradient>
+                        </defs>
+                        <circle cx="30" cy="55" r="10" fill="#fff" opacity="0.3" filter="blur(2px)"/>
+                        <polygon points="30,12 20,2 40,2" fill="hsl(${hue}, 100%, 30%)" />
+                        <ellipse cx="30" cy="12" rx="6" ry="3" fill="#fff" opacity="0.8"/>
+                        <ellipse cx="30" cy="55" rx="24" ry="35" fill="url(#grad${activeBalloons.length})" opacity="0.9"/>
+                        <path d="M 44,45 A 18,25 0 0,1 42,70" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.8" />
+                        <path d="M 16,45 A 18,25 0 0,0 18,70" fill="none" stroke="#ffffff" stroke-width="1" stroke-linecap="round" opacity="0.4" />
+                        <circle cx="42" cy="35" r="4" fill="#ffffff" opacity="0.9" />
+                    </svg>
+                `;
+            }
+            
+            balloonEl.innerHTML = svgContent;
+            const randomX = minX + Math.random() * (maxX - minX);
+            balloonEl.style.left = `${randomX}px`;
+            balloonEl.style.top = `${startY}px`;
+
+            gameBorder.appendChild(balloonEl);
+
+            activeBalloons.push({
+                element: balloonEl,
+                type: type,
+                x: randomX,
+                y: startY,
+                speed: (1.5 + (level * 0.3) + (Math.random() * 0.5)) * speedMult,
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 2,
+                swayOffset: Math.random() * 100,
+                swaySpeed: 0.02 + (Math.random() * 0.02)
+            });
+        }
+
+        function spawnBalloons(count) {
+            const borderW = gameBorder.clientWidth;
+            const minX = 20;
+            const maxX = borderW - 60; 
+            for (let i = 0; i < count; i++) {
+                spawnSingleBalloon(minX, maxX, -100 - (i * 150) - (Math.random() * 80));
+            }
+        }
+
+        function startGameLoop() {
+            function update() {
+                if (!gameActive) return;
+
+                const borderW = gameBorder.clientWidth;
+                const borderH = gameBorder.clientHeight;
+                const minX = 20;
+                const maxX = borderW - 60;
+
+                for (let i = activeBalloons.length - 1; i >= 0; i--) {
+                    const b = activeBalloons[i];
+                    
+                    b.y += b.speed; 
+                    b.swayOffset += b.swaySpeed;
+                    b.x += Math.sin(b.swayOffset) * 0.6;
+                    b.rotation += b.rotationSpeed;
+
+                    b.element.style.top = `${b.y}px`;
+                    b.element.style.left = `${b.x}px`;
+                    b.element.style.transform = `rotate(${b.rotation}deg)`;
+
+                    // Fix: Immediate flash when balloon leaves bottom border
+                    if (b.y > borderH) {
+                        if (b.type !== 'bomb') { 
+                            playSound('error');
+                            triggerScreenFlash();
+                            resetCombo(); 
+                        }
+                        b.element.remove();
+                        activeBalloons.splice(i, 1);
+                        spawnSingleBalloon(minX, maxX, -100 - (Math.random() * 50));
+                    }
+                }
+
+                if (levelHits >= levelTarget && activeBalloons.length === 0) {
+                    triggerStageEndingWithDelay();
+                } else if (gameActive) {
+                    gameLoopTimer = requestAnimationFrame(update);
+                }
+            }
+            gameLoopTimer = requestAnimationFrame(update);
+        }
+
+        // Shooting Mechanics
+        document.addEventListener("mousedown", (e) => {
+            if (!gameActive || levelTransitioning) return;
+            if (e.target.closest(".game-screen")) return;
+
+            initAudio(); // Ensure audio context is active
+            playSound('shoot');
+            triggerScreenShake();
+
+            const rotationAngle = parseFloat(gun.dataset.rotation || 0);
+            const angleRad = rotationAngle * (Math.PI / 180);
+            
+            muzzleFlash.style.opacity = "1";
+            targetGunRecoilY = 15; currentGunRecoilY = 15;
+            targetGunScaleY = 0.9; currentGunScaleY = 0.9;
+            
+            setTimeout(() => {
+                muzzleFlash.style.opacity = "0";
+                targetGunRecoilY = 0; targetGunScaleY = 1;
+            }, 80);
+
+            const isDesktop = window.innerWidth >= 768;
+            const gunBottomOffset = isDesktop ? 30 : 20; 
+            const gunPivotX = window.innerWidth / 2;
+            const gunPivotY = window.innerHeight - gunBottomOffset;
+            const gunLength = gun.offsetHeight;
+            const barrelX = gunPivotX + (gunLength * Math.sin(angleRad));
+            const barrelY = gunPivotY - (gunLength * Math.cos(angleRad));
+
+            const clickX = e.clientX;
+            const clickY = e.clientY;
+
+            createBulletTrail(barrelX, barrelY, clickX, clickY);
+
+            let hitSomething = false;
+
+            for (let i = activeBalloons.length - 1; i >= 0; i--) {
+                const b = activeBalloons[i];
+                const r = b.element.getBoundingClientRect();
+
+                if (clickX > r.left - 10 && clickX < r.right + 10 && 
+                    clickY > r.top - 10 && clickY < r.bottom + 10) {
+                    
+                    hitSomething = true;
+                    
+                    if (b.type === 'bomb') {
+                        playSound('error');
+                        triggerHeavyScreenShake();
+                        resetCombo();
+                        score -= 10;
+                        timeLeft -= 3; 
+                        if (score < 0) score = 0;
+                        spawnFloatingText(clickX, clickY, "-3 SEC!", false, "#ef4444");
+                        spawnExplosion(clickX, clickY, true);
+                    } else if (b.type === 'gold') {
+                        playSound('pop');
+                        currentCombo++; 
+                        registerHitCombo(clickX, clickY, 5); 
+                        levelHits++;
+                        spawnExplosion(clickX, clickY, false);
+                    } else {
+                        playSound('pop');
+                        registerHitCombo(clickX, clickY, 1);
+                        levelHits++;
+                        spawnExplosion(clickX, clickY, false);
+                    }
+                    
+                    txtScore.innerText = score;
+                    txtHits.innerText = levelHits;
+
+                    b.element.style.pointerEvents = "none";
+                    b.element.style.transition = "transform 0.1s ease-out, opacity 0.1s ease-out, filter 0.1s";
+                    b.element.style.transform = "scale(0.1)";
+                    b.element.style.opacity = "0";
+                    
+                    const elToDestroy = b.element;
+                    setTimeout(() => elToDestroy.remove(), 100);
+                    activeBalloons.splice(i, 1);
+
+                    const borderW = gameBorder.clientWidth;
+                    const minX = 20;
+                    const maxX = borderW - 60;
+                    spawnSingleBalloon(minX, maxX, -100 - (Math.random() * 50));
+
+                    if (levelHits >= levelTarget) triggerStageEndingWithDelay();
+                    break; 
+                }
+            }
+
+            if(!hitSomething) resetCombo();
+        });
+
+        function createBulletTrail(x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+            const trail = document.createElement("div");
+            trail.className = "laser-trail";
+            trail.style.width = `${distance}px`;
+            trail.style.left = `${x1}px`;
+            trail.style.top = `${y1}px`;
+            trail.style.transform = `rotate(${angle}deg)`;
+
+            container.appendChild(trail);
+            trail.animate([{opacity: 1}, {opacity: 0}], {duration: 150, easing: 'ease-out'});
+            setTimeout(() => trail.remove(), 150); 
+        }
+
+        function spawnFloatingText(x, y, text, isBig = false, customColor = null) {
+            const el = document.createElement("div");
+            el.className = "floating-text";
+            el.innerText = text;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            
+            if(customColor) {
+                el.style.color = customColor;
+            } else {
+                el.style.color = isBig ? "#facc15" : "#4ade80";
+            }
+            if(isBig) el.style.fontSize = "30px";
+            
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function spawnExplosion(x, y, isBomb = false) {
+            const particleCount = isBomb ? 40 : 20;
+            const colors = isBomb ? ["#ef4444", "#991b1b", "#ffffff", "#f97316"] : ["#0ff", "#d946ef", "#facc15", "#fff"];
+
+            for (let i = 0; i < particleCount; i++) {
+                const p = document.createElement("div");
+                p.className = "particle";
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.color = p.style.background; 
+                p.style.left = `${x}px`;
+                p.style.top = `${y}px`;
+
+                container.appendChild(p);
+
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = (isBomb ? 5 : 3) + Math.random() * (isBomb ? 8 : 6);
+                const velocityX = Math.cos(angle) * velocity;
+                let velocityY = Math.sin(angle) * velocity;
+
+                let px = x; let py = y;
+                let opacity = 1;
+
+                function animateParticle() {
+                    px += velocityX;
+                    py += velocityY;
+                    velocityY += 0.2; // Gravity
+                    opacity -= 0.03;
+                    
+                    const rot = Math.atan2(velocityY, velocityX) * (180 / Math.PI);
+                    
+                    p.style.left = `${px}px`;
+                    p.style.top = `${py}px`;
+                    p.style.opacity = opacity;
+                    p.style.transform = `rotate(${rot}deg)`;
+
+                    if (opacity > 0) requestAnimationFrame(animateParticle);
+                    else p.remove();
+                }
+                requestAnimationFrame(animateParticle);
+            }
+        }
+
+        function triggerStageEndingWithDelay() {
+            if (levelTransitioning) return;
+            levelTransitioning = true;
+            setTimeout(() => { handleStageEnding(); }, 1200);
+        }
+
+        function handleStageEnding() {
+            gameActive = false;
+            cancelAnimationFrame(gameLoopTimer);
+            clearInterval(countdownTimer);
+            resetCombo();
+
+            if (levelHits >= levelTarget) {
+                if (level === 3) {
+                    endGame(true, `MISSION ACCOMPLISHED! All sectors cleared. Final Score: ${score}.`);
+                } else {
+                    txtNextLevelTitle.innerText = `SECTOR ${level} SECURED`;
+                    txtNextLevelDesc.innerText = `Great job. Sector ${level} cleared. Prepare for harder targets!`;
+                    screenNext.classList.remove("hidden");
+                    crosshair.style.display = "none";
+                }
+            } else {
+                endGame(false, `Time Limit Exceeded. Sector ${level} failed.`);
+            }
+        }
+
+        function endGame(isCompleted, descMsg) {
+            gameActive = false;
+            cancelAnimationFrame(gameLoopTimer);
+            clearInterval(countdownTimer);
+            crosshair.style.display = "none";
+            resetCombo();
+            lastGameWasWon = isCompleted;
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('neonShooterHighScore', highScore);
+                txtHighScore.innerText = highScore;
+            }
+
+            if (isCompleted) {
+                modalTitle.innerText = "MISSION SUCCESS";
+                modalTitle.className = "title-main neon-green";
+                btnModalAction.innerText = "PLAY AGAIN";
+            } else {
+                modalTitle.innerText = "SYSTEM FAILURE";
+                modalTitle.className = "title-main neon-red";
+                btnModalAction.innerText = "REBOOT";
+            }
+
+            modalDesc.innerText = descMsg;
+            modalStatLevel.innerText = level;
+            modalStatScore.innerText = score;
+
+            screenModal.classList.remove("hidden");
+        }
+    </script>
+</body>
+</html>
